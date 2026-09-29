@@ -1,0 +1,92 @@
+# Local run of the whole app:   docker compose up --build
+#   UI       http://localhost:8088   (TIXLAB_UI_PORT to change)
+#   API docs http://localhost:8000/docs
+#   Mailpit  http://localhost:8025
+# Tests:                        docker compose run --rm --build api-test
+name: tixlab
+
+x-app-env: &app-env
+  TIXLAB_DATABASE_URL: postgresql+psycopg://tixlab:tixlab@db:5432/tixlab
+  TIXLAB_VALKEY_URL: redis://valkey:6379/0
+
+services:
+  db:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: tixlab
+      POSTGRES_PASSWORD: tixlab  # local-only; Kubernetes uses CloudNativePG + Sealed Secrets
+      POSTGRES_DB: tixlab
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "tixlab", "-d", "tixlab"]
+      interval: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  # Same role as the Argo CD PreSync hook Job in Kubernetes.
+  migrate:
+    image: tixlab-api:dev
+    build: { context: ./api, target: runtime }
+    command: ["sh", "-c", "alembic upgrade head && python -m app.jobs seed"]
+    environment: *app-env
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    image: tixlab-api:dev
+    build: { context: ./api, target: runtime }
+    environment:
+      <<: *app-env
+      TIXLAB_HOLD_TTL_SECONDS: "600"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz')"]
+      interval: 5s
+      retries: 10
+
+  worker:
+    image: tixlab-worker:dev
+    build: ./worker
+    environment:
+      TIXLAB_VALKEY_URL: redis://valkey:6379/0
+      TIXLAB_SMTP_HOST: mailpit
+    depends_on:
+      valkey: { condition: service_healthy }
+      mailpit: { condition: service_started }
+
+  frontend:
+    image: tixlab-frontend:dev
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${TIXLAB_UI_PORT:-8088}:8080"
+    depends_on:
+      api: { condition: service_healthy }
+
+  api-test:
+    profiles: [test]
+    build: { context: ./api, target: test }
+    environment:
+      <<: *app-env
+      TIXLAB_TEST_VALKEY_URL: redis://valkey:6379/15
+    depends_on:
+      db: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+
+volumes:
+  pgdata:

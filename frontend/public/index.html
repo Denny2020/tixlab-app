@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TixLab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a href="#" id="home" class="brand">TixLab</a>
+    <span class="tag">tickets, reconciled</span>
+  </header>
+  <main>
+    <section id="events-view">
+      <h1>Upcoming events</h1>
+      <ul id="events" class="events"></ul>
+    </section>
+
+    <section id="event-view" hidden>
+      <a href="#" class="back">&larr; All events</a>
+      <h1 id="event-name"></h1>
+      <p id="event-meta" class="muted"></p>
+      <div class="stage">STAGE</div>
+      <div id="seats" class="seats"></div>
+      <p class="legend">
+        <span class="seat available"></span> available
+        <span class="seat held"></span> held
+        <span class="seat booked"></span> booked
+        <span class="seat mine"></span> your hold
+      </p>
+      <div id="hold-panel" class="panel" hidden>
+        <p>Seat <strong id="hold-seat"></strong> is yours for <strong id="hold-timer"></strong></p>
+        <form id="confirm-form">
+          <input id="email" type="email" placeholder="you@example.com" required>
+          <button type="submit">Confirm booking</button>
+          <button type="button" id="release" class="secondary">Release</button>
+        </form>
+      </div>
+      <div id="confirmation" class="panel success" hidden></div>
+    </section>
+    <p id="error" class="error" hidden></p>
+  </main>
+  <footer class="muted">API <span id="version">…</span> · emails go to Mailpit</footer>
+  <script src="app.js"></script>
+</body>
+</html>
