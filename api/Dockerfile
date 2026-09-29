@@ -9,17 +9,20 @@ WORKDIR /app
 
 FROM base AS deps
 COPY requirements.txt .
-RUN python -m venv /venv && pip install --require-hashes -r requirements.txt
+# venv without pip: the runtime image ships no package installer (and none of pip's vendored CVEs)
+RUN python -m venv --without-pip /venv \
+ && pip --python /venv/bin/python install --require-hashes -r requirements.txt
 
 # `docker build --target test` runs the suite against real Postgres/Valkey (see compose.yaml).
 FROM deps AS test
 COPY requirements-dev.txt .
-RUN pip install --require-hashes -r requirements-dev.txt
+RUN pip --python /venv/bin/python install --require-hashes -r requirements-dev.txt
 COPY . .
 CMD ["pytest", "-q"]
 
 FROM base AS runtime
-RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+RUN python -m pip uninstall --yes --quiet pip \
+ && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 COPY --from=deps /venv /venv
 COPY alembic.ini .
 COPY migrations ./migrations
