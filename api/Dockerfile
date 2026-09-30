@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM python:3.14.7-slim-trixie AS base
+# Apply Debian security fixes released since the upstream base image was built.
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \

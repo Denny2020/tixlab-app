@@ -6,6 +6,10 @@ RUN python -m venv --without-pip /venv \
  && pip --python /venv/bin/python install --require-hashes -r requirements.txt
 
 FROM python:3.14.7-slim-trixie
+# Apply Debian security fixes released since the upstream base image was built.
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/venv/bin:$PATH
 # no pip in the runtime image
 RUN python -m pip uninstall --yes --quiet pip \
