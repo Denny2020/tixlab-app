@@ -1,0 +1,12 @@
+# Keeps SHA-pinned actions and base images current. Python deps are hash-locked with uv
+# (see README) and updated by hand for now.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: docker
+    directories: [/api, /worker, /frontend]
+    schedule: { interval: weekly }
