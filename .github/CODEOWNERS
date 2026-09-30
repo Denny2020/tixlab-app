@@ -1,0 +1,5 @@
+# Changes to the pipeline, images and dependency locks are the most security-sensitive.
+*                    @Denny2020
+/.github/            @Denny2020
+**/Dockerfile        @Denny2020
+**/requirements*.txt @Denny2020

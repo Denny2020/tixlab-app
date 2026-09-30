@@ -35,6 +35,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # PRs only: blocks newly added dependencies with known HIGH/CRITICAL vulnerabilities.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
   test:
     runs-on: ubuntu-24.04
     services:
@@ -225,3 +235,16 @@ jobs:
             echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
+
+  # The single required status check for the main branch ruleset, so the matrix can change freely.
+  # Skipped jobs (dependency-review on push, publish on PRs) count as passing.
+  ci-ok:
+    if: always()
+    needs: [secret-scan, dependency-review, test, build, publish]
+    runs-on: ubuntu-24.04
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "a required job failed or was cancelled" >&2
+          exit 1
+      - run: echo "all CI jobs passed"
