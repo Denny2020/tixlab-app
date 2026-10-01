@@ -236,11 +236,54 @@ jobs:
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
 
+  # Continuous deployment to dev: PR on tixlab-gitops bumping envs/dev image.tag, merged at once
+  # (the PR is the audit trail). Uses a GitHub App token limited to tixlab-gitops; the cluster is
+  # never touched from CI. Skipped until the App is configured (vars.GITOPS_APP_CLIENT_ID).
+  bump-dev:
+    needs: publish
+    if: github.ref == 'refs/heads/main' && vars.GITOPS_APP_CLIENT_ID != ''
+    runs-on: ubuntu-24.04
+    permissions: {}
+    concurrency:
+      group: bump-dev
+      cancel-in-progress: false
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.GITOPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+          owner: Denny2020
+          repositories: tixlab-gitops
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Denny2020/tixlab-gitops
+          token: ${{ steps.token.outputs.token }}
+      - name: Open and merge the bump PR
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          tag="sha-${GITHUB_SHA::7}"
+          sed -i -E "s/^(  tag: ).*/\1${tag}/" envs/dev/values.yaml
+          if git diff --quiet; then echo "dev already at $tag"; exit 0; fi
+          branch="bump/dev-$tag"
+          git config user.name "tixlab-ci"
+          git config user.email "tixlab-ci@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -qam "dev: deploy tixlab $tag"
+          git push -q origin "$branch"
+          gh pr create --base main --head "$branch" --title "dev: deploy tixlab $tag" \
+            --body "Built by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} from ${GITHUB_REPOSITORY}@${GITHUB_SHA}. Images are signed; verify with cosign (see tixlab-app SECURITY.md)."
+          gh pr merge "$branch" --squash --delete-branch
+          echo "### dev -> $tag" >>"$GITHUB_STEP_SUMMARY"
+
   # The single required status check for the main branch ruleset, so the matrix can change freely.
   # Skipped jobs (dependency-review on push, publish on PRs) count as passing.
   ci-ok:
     if: always()
-    needs: [secret-scan, dependency-review, test, build, publish]
+    needs: [secret-scan, dependency-review, test, build, publish, bump-dev]
     runs-on: ubuntu-24.04
     steps:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
