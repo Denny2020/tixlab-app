@@ -7,3 +7,4 @@ valkey==6.1.1
 pydantic-settings==2.15.0
 email-validator
 prometheus-client==0.26.0
+segno==1.6.6

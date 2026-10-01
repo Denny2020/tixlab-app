@@ -16,7 +16,7 @@ RUN python -m pip uninstall --yes --quiet pip \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 COPY --from=deps /venv /venv
 WORKDIR /app
-COPY worker.py .
+COPY worker.py bots.py ./
 USER 10001
 EXPOSE 8081
 CMD ["python", "worker.py"]
