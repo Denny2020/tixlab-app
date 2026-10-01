@@ -31,7 +31,7 @@ function h(tag, props, ...children) {
 const money = (cents) =>
   (cents / 100).toLocaleString(undefined, {
     style: "currency",
-    currency: "EUR",
+    currency: "AUD",
     minimumFractionDigits: cents % 100 ? 2 : 0,
   });
 const when = (iso) =>

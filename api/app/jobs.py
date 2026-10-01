@@ -90,7 +90,7 @@ def report() -> None:
         ).all()
     lines = [f"{name:<30} {sold:>4} sold  {revenue / 100:>10.2f}" for name, sold, revenue in rows]
     total = sum(revenue for _, _, revenue in rows) / 100
-    body = "\n".join(lines + ["", f"{'Total revenue':<41} {total:>10.2f}"])
+    body = "\n".join([f"{'Event':<30} {'Sold':>9}  {'AUD':>10}"] + lines + ["", f"{'Total revenue (AUD)':<41} {total:>10.2f}"])
     kv.enqueue_email(settings.report_email, f"TixLab sales report {datetime.now(UTC):%Y-%m-%d}", body)
     log.info("sales report queued:\n%s", body)
 
