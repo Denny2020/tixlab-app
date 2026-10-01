@@ -2,12 +2,17 @@
 #   UI       http://localhost:8088   (TIXLAB_UI_PORT to change)
 #   API docs http://localhost:8000/docs
 #   Mailpit  http://localhost:8025
+#   Organizer token (local only): local-dev-only-change-me
 # Tests:                        docker compose run --rm --build api-test
 name: tixlab
 
 x-app-env: &app-env
   TIXLAB_DATABASE_URL: postgresql+psycopg://tixlab:tixlab@db:5432/tixlab
   TIXLAB_VALKEY_URL: redis://valkey:6379/0
+  # local-only secrets; Kubernetes reads them from the tixlab-secrets Secret
+  TIXLAB_SIGNING_KEY: local-dev-only-change-me
+  TIXLAB_ORGANIZER_TOKEN: local-dev-only-change-me
+  TIXLAB_PUBLIC_URL: http://localhost:${TIXLAB_UI_PORT:-8088}
 
 services:
   db:
@@ -25,6 +30,8 @@ services:
 
   valkey:
     image: valkey/valkey:9.1.2-alpine
+    # Ex: publish key-expiry events, so expired seat holds show up live
+    command: ["valkey-server", "--notify-keyspace-events", "Ex"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 3s
@@ -69,6 +76,17 @@ services:
     depends_on:
       valkey: { condition: service_healthy }
       mailpit: { condition: service_started }
+
+  # Simulated fans for the organizer's "bot rush". Idle until a rush is started.
+  bots:
+    image: tixlab-worker:dev
+    build: ./worker
+    command: ["python", "bots.py"]
+    environment:
+      TIXLAB_VALKEY_URL: redis://valkey:6379/0
+      TIXLAB_API_URL: http://api:8000
+    depends_on:
+      api: { condition: service_healthy }
 
   frontend:
     image: tixlab-frontend:dev

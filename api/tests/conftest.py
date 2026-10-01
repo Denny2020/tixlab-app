@@ -20,7 +20,7 @@ from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import holds  # noqa: E402
+from app import kv  # noqa: E402
 from app.db import SessionLocal, engine, normalize_url  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Event, Seat  # noqa: E402
@@ -42,7 +42,7 @@ def database():
 def clean_state():
     with engine.begin() as conn:
         conn.execute(text("TRUNCATE bookings, seats, events RESTART IDENTITY CASCADE"))
-    holds.client.flushdb()
+    kv.client.flushdb()
 
 
 @pytest.fixture
@@ -50,12 +50,28 @@ def client():
     return TestClient(app)
 
 
-@pytest.fixture
-def event():
-    """One event with seats A1-A4."""
+def make_event(opens_at=None, waiting_room=False):
+    """An event with seats A1-A4 (Front, 50.00) and returns its ids."""
     with SessionLocal() as session:
-        ev = Event(name="Test Gig", venue="Test Hall", starts_at=datetime(2030, 1, 1, 20, tzinfo=UTC), price_cents=1000)
-        ev.seats = [Seat(label=f"A{n}") for n in range(1, 5)]
+        ev = Event(
+            slug=None, name="Test Gig", artist="The Fixtures", venue="Test Hall",
+            starts_at=datetime(2030, 1, 1, 20, tzinfo=UTC), opens_at=opens_at,
+            waiting_room=waiting_room, price_cents=5000,
+        )
+        ev.seats = [Seat(label=f"A{n}", section="Front", price_cents=5000) for n in range(1, 5)]
         session.add(ev)
         session.commit()
         return {"id": ev.id, "seat_ids": [s.id for s in ev.seats]}
+
+
+@pytest.fixture
+def event():
+    """An event that is on sale, without a waiting room."""
+    return make_event()
+
+
+@pytest.fixture
+def organizer():
+    from app.config import settings
+
+    return {"Authorization": f"Bearer {settings.organizer_token}"}
