@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14.7-slim-trixie AS deps
+FROM python:3.14.8-slim-trixie AS deps
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY requirements.txt .
 RUN python -m venv --without-pip /venv \
  && pip --python /venv/bin/python install --require-hashes -r requirements.txt
 
-FROM python:3.14.7-slim-trixie
+FROM python:3.14.8-slim-trixie
 # Apply Debian security fixes released since the upstream base image was built.
 RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \
