@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14.7-slim-trixie AS base
+FROM python:3.15.0-slim-trixie AS base
 # Apply Debian security fixes released since the upstream base image was built.
 RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \
